@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>用户管理系统</title>
+    <style>
+        /* CSS 样式部分 */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: "Microsoft YaHei", sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .form-area {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .form-area input {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            flex: 1;
+            min-width: 120px;
+        }
+
+        .form-area button {
+            padding: 8px 20px;
+            background: #4CAF50;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .form-area button:hover {
+            background: #45a049;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        table th, table td {
+            padding: 12px;
+            text-align: center;
+            border-bottom: 1px solid #eee;
+        }
+
+        table th {
+            background: #f8f8f8;
+            color: #555;
+        }
+
+        table td button {
+            padding: 4px 12px;
+            margin: 0 4px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            color: #fff;
+        }
+
+        .btn-edit {
+            background: #2196F3;
+        }
+
+        .btn-delete {
+            background: #f44336;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>用户管理系统</h1>
+
+    <!-- 表单区域 -->
+    <div class="form-area">
+        <input type="hidden" id="userId">
+        <input type="text" id="userName" placeholder="姓名">
+        <input type="number" id="userAge" placeholder="年龄">
+        <input type="email" id="userEmail" placeholder="邮箱">
+        <button id="saveBtn" onclick="saveUser()">新增</button>
+        <button onclick="resetForm()">重置</button>
+    </div>
+
+    <!-- 表格区域 -->
+    <table>
+        <thead>
+        <tr>
+            <th>ID</th>
+            <th>姓名</th>
+            <th>年龄</th>
+            <th>邮箱</th>
+            <th>创建时间</th>
+            <th>操作</th>
+        </tr>
+        </thead>
+        <tbody id="userTableBody"></tbody>
+    </table>
+</div>
+
+<script>
+    // JS 逻辑部分
+    const API_BASE = 'http://localhost:8080/api/user';
+
+    // 页面加载时获取列表
+    window.onload = function() {
+        loadUsers();
+    };
+
+    // 加载用户列表
+    function loadUsers() {
+        fetch(API_BASE + '/list')
+            .then(res => res.json())
+            .then(data => {
+                const tbody = document.getElementById('userTableBody');
+                tbody.innerHTML = '';
+                data.forEach(user => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                            <td>${user.id}</td>
+                            <td>${user.name}</td>
+                            <td>${user.age}</td>
+                            <td>${user.email}</td>
+                            <td>${user.createTime ? user.createTime.replace('T', ' ') : ''}</td>
+                            <td>
+                                <button class="btn-edit" onclick="editUser(${user.id})">编辑</button>
+                                <button class="btn-delete" onclick="deleteUser(${user.id})">删除</button>
+                            </td>
+                        `;
+                    tbody.appendChild(tr);
+                });
+            })
+            .catch(err => console.error('加载失败:', err));
+    }
+
+    // 保存（新增或修改）
+    function saveUser() {
+        const id = document.getElementById('userId').value;
+        const user = {
+            name: document.getElementById('userName').value,
+            age: parseInt(document.getElementById('userAge').value),
+            email: document.getElementById('userEmail').value
+        };
+
+        if (!user.name) {
+            alert('姓名不能为空');
+            return;
+        }
+
+        const url = id ? API_BASE + '/update' : API_BASE + '/add';
+        const method = id ? 'PUT' : 'POST';
+
+        if (id) user.id = parseInt(id);
+
+        fetch(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(user)
+        })
+            .then(res => res.text())
+            .then(msg => {
+                alert(msg);
+                resetForm();
+                loadUsers();
+            })
+            .catch(err => console.error('操作失败:', err));
+    }
+
+    // 编辑：回填数据
+    function editUser(id) {
+        fetch(API_BASE + '/' + id)
+            .then(res => res.json())
+            .then(user => {
+                document.getElementById('userId').value = user.id;
+                document.getElementById('userName').value = user.name;
+                document.getElementById('userAge').value = user.age;
+                document.getElementById('userEmail').value = user.email;
+                document.getElementById('saveBtn').textContent = '修改';
+            });
+    }
+
+    // 删除
+    function deleteUser(id) {
+        if (!confirm('确定要删除吗？')) return;
+        fetch(API_BASE + '/delete/' + id, { method: 'DELETE' })
+            .then(res => res.text())
+            .then(msg => {
+                alert(msg);
+                loadUsers();
+            })
+            .catch(err => console.error('删除失败:', err));
+    }
+
+    // 重置表单
+    function resetForm() {
+        document.getElementById('userId').value = '';
+        document.getElementById('userName').value = '';
+        document.getElementById('userAge').value = '';
+        document.getElementById('userEmail').value = '';
+        document.getElementById('saveBtn').textContent = '新增';
+    }
+</script>
+</body>
+</html>
